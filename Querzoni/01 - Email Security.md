@@ -1,83 +1,68 @@
 # Lecture 01 — Email Security
 
 **Docente:** Leonardo Querzoni  
-**Fonte primaria:** `1 - Email security.pdf`, Sapienza 2026/27  
-**Stato:** studiate e sintetizzate le slide **1–8**; il resto della lezione è da completare.  
-**Nota sulle fonti:** i chiarimenti e gli esempi aggiuntivi sono distinti dal contenuto presentato nelle slide.
+**Fonte:** `1 - Email security.pdf` (2026/27), slide **1–12**  
+**Stato:** note delle parti studiate; spiegazioni aggiuntive esplicitamente indicate.
 
-## Panorama e idea fondamentale (slide 1–3)
+## Architettura e flusso (slide 1–6)
 
-La lezione introduce l'architettura email e, in seguito, SMTP, POP/IMAP, MIME, minacce e meccanismi di sicurezza. Distinguere la sicurezza del **trasporto** da quella del **contenuto end-to-end**.
-
-**Store-and-forward:** un server riceve, memorizza temporaneamente e inoltra o consegna un messaggio. Mittente e destinatario **non devono essere online contemporaneamente**.
-
-## Architettura email (slide 4–6)
+L'email usa un modello **store-and-forward**: i server memorizzano e inoltrano i messaggi; mittente e destinatario non devono essere online insieme.
 
 ![Email architecture: MUA, MSA, MTA, MDA, Message Store](../assets/email-architecture.svg)
 
-| Componente | Cosa fa |
+| Componente | Funzione essenziale |
 | --- | --- |
-| **MUA** — Mail User Agent | Client con cui l'utente scrive e legge email (es. Thunderbird). |
-| **MSA** — Mail Submission Agent | Riceve dal MUA un'email in uscita per avviarne la spedizione. |
-| **MTA** — Mail Transfer Agent | Riceve e inoltra messaggi tra server; può operare sia come **server SMTP** sia come **client SMTP**. |
-| **MDA** — Mail Delivery Agent | **Consegna:** prende il messaggio arrivato tramite l'MTA e lo deposita nella mailbox del destinatario. |
-| **Message Store / Mailbox** | Conserva le email già consegnate. |
-| **MRA** — Mail Retrieval Agent | **Recupero:** permette di prelevare/accedere alle email nella mailbox per renderle disponibili al MUA, normalmente con funzionalità POP3/IMAP. |
+| **MUA** (*Mail User Agent*) | Client per comporre e leggere email |
+| **MSA** (*Mail Submission Agent*) | Accetta il messaggio in uscita dal client |
+| **MTA** (*Mail Transfer Agent*) | Trasferisce email fra server: può essere client e server SMTP |
+| **MDA** (*Mail Delivery Agent*) | **Deposita** il messaggio nella mailbox del destinatario |
+| **Message Store** | Conserva i messaggi consegnati |
+| **MRA** (*Mail Retrieval Agent*) | **Recupera** i messaggi dalla mailbox per renderli disponibili al MUA |
 
-**Percorso completo (ruoli logici):**
+**Flusso:** `MUA → MSA → MTA → [altri MTA] → MDA → mailbox → MRA → MUA`. Sono **ruoli logici**, non necessariamente sistemi separati; l'MRA può essere integrato nel MUA. **SMTP** invia/trasferisce, **POP3/IMAP** permettono l'accesso alla mailbox.
 
-`MUA mittente → MSA → MTA mittente → MTA destinatario → MDA → Mailbox → MRA → MUA destinatario`
+*Precisazione:* la slide 6 descrive MDA; MRA compare nel titolo. La spiegazione specifica dell'MRA è un'integrazione.
 
-Il diagramma sopra illustra i componenti principali e il recupero POP/IMAP; **l'MRA può essere integrato nel MUA**, senza essere una macchina o un'applicazione distinta.
+## SMTP: envelope ≠ message (slide 7–8)
 
-> **MDA vs MRA:** l'MDA **deposita** il messaggio nella mailbox; l'MRA lo **recupera** dalla mailbox. Non confondere queste operazioni con il trasferimento fra server, compito degli MTA.
+SMTP (*Simple Mail Transfer Protocol*, RFC 5321) trasferisce email; il messaggio ha un **envelope SMTP** separato da **header e body** (formato RFC 5322).
 
-**Fonte:** le slide 4–6 illustrano l'architettura e MDA; la distinzione operativa MRA/POP/IMAP è un **chiarimento integrativo**: nella slide 6 l'MRA compare nel titolo ma non viene sviluppato in dettaglio.
+| Envelope SMTP | Header del messaggio |
+| --- | --- |
+| `MAIL FROM`: indirizzo di ritorno per errori di consegna | `From:`: mittente **dichiarato**, normalmente visibile nel client |
+| `RCPT TO`: destinatari effettivi della consegna | `To:`: destinatari **dichiarati**, visibili nel client |
 
-## SMTP e struttura di un'email (slide 7–8)
+**Esempio:** `MAIL FROM:<bounce@mailer.example>`, ma `From: Alice <alice@example.com>`. Possono coincidere oppure no. Anche se coincidono, **non costituiscono da soli una prova dell'identità** del mittente. I destinatari effettivi `RCPT TO` possono differire dal campo `To:` (ad esempio Bcc).
 
-**SMTP (Simple Mail Transfer Protocol)** si occupa della **submission** e del **trasferimento** dei messaggi email. Non è il protocollo con cui normalmente il destinatario legge i messaggi già depositati: per l'accesso alla mailbox si usano **IMAP** o **POP3**.
+**Email spoofing:** un attaccante può inserire un `From:` ingannevole. È il problema di autenticazione che motiva SPF, DKIM e DMARC (da approfondire più avanti).
 
-Una singola email ha **due livelli distinti**:
+## Struttura dell'header (slide 9)
 
-1. **SMTP envelope:** dati usati dal sistema SMTP per inoltro e gestione delle consegne, in particolare `MAIL FROM` (indirizzo per gli eventuali messaggi di mancata consegna, *reverse-path*) e `RCPT TO` (destinatario di trasporto).
-2. **Message (header + body):** contenuto trasmesso dopo il comando SMTP `DATA`. L'**header** contiene campi come `From:`, `To:`, `Subject:`, `Date:`; una **riga vuota** lo separa dal **body**.
+L'header è formato da campi `Nome: valore` (RFC 5322) ed è separato dal **body da una riga vuota**.
 
-### Esempio: envelope e header possono differire
+- **Folding:** un valore può proseguire sulla riga successiva se questa inizia con spazio o tab.
+- Gli header tradizionali usano ASCII a 7 bit; **MIME encoded words** possono rappresentare valori non ASCII.
+- **MIME** estende inoltre la rappresentazione del contenuto (allegati, media e codifiche).
 
-```text
-SMTP envelope:
-MAIL FROM:<bounce@mailer.example>
-RCPT TO:<bob@example.org>
+## Due identificatori diversi (slide 10–11)
 
-Message header:
-From: Alice <alice@example.com>
-To: Bob <bob@example.org>
-Subject: Riunione
+| | **Message-ID** | **ENVID** |
+| --- | --- | --- |
+| A cosa si riferisce | Al messaggio | A una singola operazione di invio/consegna |
+| Dove si trova | Campo dell'**header** | Identificatore dell'**envelope** SMTP |
+| Assegnato da | MUA o MSA | Primo MTA (come indicato nella slide) |
+| Utilità | Thread, duplicati, tracking | Tracciare un ciclo di consegna e le notifiche relative |
 
-Ciao Bob, ci vediamo domani.
-```
+**Message-ID**, es. `<20241001102233.12345@example.com>`: il dominio dopo `@` identifica chi assegna l'ID; la parte prima di `@` identifica il messaggio in quell'ambito. È progettato per essere globalmente unico, **non è una prova di autenticità**.
 
-Il `From:` e il `To:` normalmente mostrati da Gmail, Outlook o Thunderbird sono **campi dell'header**, **non** i comandi `MAIL FROM` e `RCPT TO` dell'envelope.
+**ENVID** (*Envelope Identifier*): valore opaco per il tracciamento di una specifica spedizione; un reinvio crea un nuovo ciclo e non riusa lo stesso ENVID. *Precisazione tecnica esterna:* ENVID è un parametro opzionale dell'estensione SMTP DSN, non presente obbligatoriamente in ogni messaggio.
 
-- Il mittente visibile (`From:`) e il mittente dell'envelope (`MAIL FROM`) **possono** coincidere, ma **non sono tenuti a coincidere**.
-- Anche se coincidono, la sola uguaglianza **non autentica** l'identità del mittente.
-- Analogamente, il `To:` visibile può differire dai destinatari effettivi `RCPT TO`, per esempio con i destinatari in Bcc.
+## Campi e destinatari effettivi (slide 12)
 
-### Implicazione di sicurezza: email spoofing
+La slide cita `From:`, `To:`, `Date:`, `Message-ID:`, `Subject:` e li presenta come obbligatori. **Attenzione rispetto allo standard:** nella RFC 5322 non tutti lo sono (per esempio `Subject:` è facoltativo).
 
-**Esempio integrativo (non dimostrazione di un attacco nella slide):** un messaggio può dichiarare nell'header `From: amministrazione@azienda.example` senza che tale dichiarazione provi l'origine reale. Ecco perché il semplice `From:` mostrato dal client **non è prova di autenticità**.
+**Idea chiave della slide:** `To:` non determina necessariamente a chi SMTP consegna il messaggio; è `RCPT TO` a specificarlo. Analogamente, `From:` non prova chi abbia realmente inviato l'email.
 
-Questo problema motiva i successivi meccanismi di autenticazione della posta, come **SPF, DKIM e DMARC** (ancora da studiare): questi non vanno interpretati come una semplice verifica che i due campi `From` siano uguali.
+## Da saper spiegare senza appunti
 
-### Message format e MIME
-
-La **RFC 5322** descrive l'Internet Message Format: **header**, riga vuota, **body**. **MIME** estende la rappresentazione dei contenuti per supportare, fra l'altro, allegati, diversi tipi di media e codifiche.
-
-## Domande rapide di verifica
-
-1. Perché il modello *store-and-forward* non richiede che mittente e destinatario siano online insieme?
-2. Qual è la differenza tra **MDA** e **MRA**?
-3. Perché un **MTA** può essere sia client sia server SMTP?
-4. Il `From:` mostrato dal client è l'indirizzo `MAIL FROM` dell'envelope?
-5. Se `From:` e `MAIL FROM` coincidono, questo autentica necessariamente il mittente?
+Perché **MDA** e **MRA** svolgono compiti diversi? Quale differenza esiste fra `MAIL FROM` e `From:`? Perché un `Message-ID` con un dominio apparentemente affidabile non autentica il messaggio?
