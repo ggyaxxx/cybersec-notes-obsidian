@@ -1,8 +1,8 @@
 # Lecture 01 — Email Security
 
 **Docente:** Leonardo Querzoni  
-**Fonte:** `1 - Email security.pdf` (2026/27), slide **1–22**  
-**Stato:** note delle parti studiate; spiegazioni aggiuntive esplicitamente indicate.
+**Fonte:** `1 - Email security.pdf` (2026/27), slide **1–33**  
+**Stato:** slide 1–33 affrontate; **ripasso del sistema binario e di Base64 ancora da svolgere e verificare**. Gli esempi integrativi sono distinti dalle slide.
 
 ## Architettura e flusso (slide 1–6)
 
@@ -78,3 +78,22 @@ Per consegnare a un altro dominio, l'MTA consulta i record DNS MX e poi contatta
 Nella conversazione SMTP (slide 19), MAIL FROM e RCPT TO definiscono **l'envelope** e vengono trasmessi **prima di DATA**. Solo dopo DATA vengono inviati gli header del messaggio (From, To, Subject), una riga vuota e il body. Il punto su una riga separata termina i dati. Un codice 250 dopo DATA indica accettazione dal server, non lettura o consegna finale.
 
 ESMTP usa EHLO per scoprire estensioni quali STARTTLS (protezione della connessione), AUTH (autenticazione del client), DSN (notifiche di consegna), SIZE, 8BITMIME, PIPELINING, CHUNKING e SMTPUTF8. TLS sul collegamento non implica cifratura end-to-end.
+
+## MIME: formato, contenuto e codifica (slide 23–33)
+
+**MIME (Multipurpose Internet Mail Extensions)** estende il formato email per gestire caratteri non ASCII, allegati e messaggi composti da più parti. **Non sostituisce SMTP**: SMTP trasporta, MIME descrive come interpretare i contenuti.
+
+| Header MIME | Scopo |
+| --- | --- |
+| `MIME-Version: 1.0` | Versione MIME |
+| `Content-Type: text/plain; charset=UTF-8` | Tipo del contenuto e, per il testo, interpretazione dei byte |
+| `Content-Transfer-Encoding: base64` | Come sono codificati i byte per il trasporto |
+| `Content-ID`, `Content-Description` | Identificazione e descrizione di una parte |
+
+Esempi di tipi: `text/plain`, `image/jpeg`, `application/pdf`, `multipart/mixed`. **Charset ≠ transfer encoding**: UTF-8 trasforma caratteri in byte; Base64 trasforma byte in caratteri ASCII trasportabili.
+
+**Non tutto il body deve essere Base64.** Un messaggio di solo testo può usare `7bit` (testo direttamente leggibile), mentre uno stesso testo può anche essere codificato in Base64. In un messaggio `multipart/mixed`, il testo può rimanere leggibile mentre **solo la parte PDF** usa `Content-Transfer-Encoding: base64`: ogni parte può avere il proprio Content-Type e la propria codifica.
+
+**Base64, idea essenziale:** suddivide **3 byte = 24 bit** in **4 gruppi da 6 bit**; ciascuno seleziona uno dei 64 simboli (`A–Z`, `a–z`, `0–9`, `+`, `/`). Quando necessario usa `=` come padding. Esempio: `Man` → `TWFu`. È una **codifica reversibile, non cifratura**: non garantisce confidenzialità o autenticità.
+
+> **Da ripassare prima di proseguire:** conversione decimale ↔ binario, byte e bit, potenze di 2, raggruppamento 8→6 bit, corrispondenza indice→simbolo Base64 e padding `=`. La meccanica del calcolo **non è ancora stata verificata con un esercizio autonomo**.
