@@ -1,7 +1,7 @@
 # Lecture 01 — Email Security
 
 **Docente:** Leonardo Querzoni  
-**Fonte:** `1 - Email security.pdf` (2026/27), slide **1–12**  
+**Fonte:** `1 - Email security.pdf` (2026/27), slide **1–22**  
 **Stato:** note delle parti studiate; spiegazioni aggiuntive esplicitamente indicate.
 
 ## Architettura e flusso (slide 1–6)
@@ -68,3 +68,13 @@ La slide cita `From:`, `To:`, `Date:`, `Message-ID:`, `Subject:` e li presenta c
 ## Da saper spiegare senza appunti
 
 Perché **MDA** e **MRA** svolgono compiti diversi? Quale differenza esiste fra `MAIL FROM` e `From:`? Perché un `Message-ID` con un dominio apparentemente affidabile non autentica il messaggio?
+
+## Slide 13–22 — SMTP e routing
+
+I campi Cc, Bcc, Reply-To, Sender, In-Reply-To, References, Return-Path e Received completano l'header; alcuni aiutano a ricostruire destinatari, conversazioni e percorso, ma non garantiscono da soli autenticità.
+
+Per consegnare a un altro dominio, l'MTA consulta i record DNS MX e poi contatta il mail exchanger via SMTP. La preferenza MX numericamente minore ha priorità.
+
+Nella conversazione SMTP (slide 19), MAIL FROM e RCPT TO definiscono **l'envelope** e vengono trasmessi **prima di DATA**. Solo dopo DATA vengono inviati gli header del messaggio (From, To, Subject), una riga vuota e il body. Il punto su una riga separata termina i dati. Un codice 250 dopo DATA indica accettazione dal server, non lettura o consegna finale.
+
+ESMTP usa EHLO per scoprire estensioni quali STARTTLS (protezione della connessione), AUTH (autenticazione del client), DSN (notifiche di consegna), SIZE, 8BITMIME, PIPELINING, CHUNKING e SMTPUTF8. TLS sul collegamento non implica cifratura end-to-end.
