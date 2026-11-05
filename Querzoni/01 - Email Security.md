@@ -55,7 +55,9 @@ L'header è formato da campi `Nome: valore` (RFC 5322) ed è separato dal **body
 
 **Message-ID**, es. `<20241001102233.12345@example.com>`: il dominio dopo `@` identifica chi assegna l'ID; la parte prima di `@` identifica il messaggio in quell'ambito. È progettato per essere globalmente unico, **non è una prova di autenticità**.
 
-**ENVID** (*Envelope Identifier*): valore opaco per il tracciamento di una specifica spedizione; un reinvio crea un nuovo ciclo e non riusa lo stesso ENVID. *Precisazione tecnica esterna:* ENVID è un parametro opzionale dell'estensione SMTP DSN, non presente obbligatoriamente in ogni messaggio.
+**ENVID** (*Envelope Identifier*): identifica una **specifica operazione di invio e consegna**, non il messaggio in sé. Nel normale trasferimento `MTA 1 → MTA 2 → MTA 3` non viene rigenerato a ogni passaggio; neppure un semplice nuovo tentativo dopo un errore temporaneo costituisce automaticamente un nuovo *posting*. Se invece un sistema **re-immette il messaggio come nuova spedizione** (*re-posting*, per esempio una mailing list che lo redistribuisce), **non riutilizza l'ENVID precedente**, anche se il contenuto resta uguale.
+
+*Precisazione tecnica esterna:* ENVID è un parametro **opzionale** dell'estensione SMTP DSN (RFC 3461), quindi non tutte le email lo usano. Il suo scopo è associare le notifiche di consegna alla corretta operazione di invio; il re-posting è distinto dal semplice inoltro tra MTA.
 
 ## Campi e destinatari effettivi (slide 12)
 
